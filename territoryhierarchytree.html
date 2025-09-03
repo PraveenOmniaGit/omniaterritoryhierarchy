@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>D3 Vertical Tree with Expand/Collapse & Node Box</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+
+        .node-label,
+        .node-role,
+        .node-jobtitle,
+        .node-email {
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            letter-spacing: 0.01em;
+        }
+
+        #tree-container {
+            width: 100%;
+            height: 100vh;
+            overflow: auto;
+            background: #fafafa;
+            position: relative;
+        }
+
+        .control-buttons {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-button {
+            padding: 11px 18px;
+            background: linear-gradient(90deg, #1976D2 0%, #2196F3 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-family: 'Segoe UI', 'Arial', 'Helvetica Neue', Helvetica, sans-serif !important;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.10);
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s, border 0.2s;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .control-button:hover,
+        button:hover,
+        select:hover,
+        input[type="button"]:hover,
+        input[type="submit"]:hover {
+            background: linear-gradient(90deg, #1565C0 0%, #1976D2 100%);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(25, 118, 210, 0.18);
+        }
+
+        .toggle-icon {
+            font-size: 20px;
+            font-weight: bold;
+            text-anchor: middle;
+            fill: #000;
+            cursor: pointer;
+            user-select: none;
+            paint-order: stroke;
+            stroke: white;
+            stroke-width: 4px;
+        }
+
+        #tree-container {
+            cursor: grab;
+        }
+
+        #tree-container.dragging {
+            cursor: grabbing;
+        }
+
+        /* Custom multi-select dropdown with checkboxes */
+        .custom-multiselect {
+            position: relative;
+            display: inline-block;
+            min-width: 170px;
+            margin-right: 16px;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+        }
+
+        .custom-multiselect-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: linear-gradient(90deg, #f8fafc 0%, #e3f2fd 100%);
+            color: #1565C0;
+            border: 1.5px solid #1976D2;
+            border-radius: 6px;
+            font-size: 17px;
+            font-weight: 500;
+            fill: #4b6584;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            letter-spacing: 0.1px;
+            text-align: left;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-multiselect-btn:after {
+            content: '\25BC';
+            float: right;
+            font-size: 12px;
+            color: #1976D2;
+            margin-left: auto;
+        }
+
+        .custom-multiselect-btn.active,
+        .custom-multiselect-btn:focus {
+            border-color: #0d47a1;
+            box-shadow: 0 4px 16px rgba(25, 118, 210, 0.15);
+        }
+
+        .custom-multiselect-dropdown {
+            display: none;
+            position: absolute;
+            top: 110%;
+            left: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1.5px solid #1976D2;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(25, 118, 210, 0.15);
+            z-index: 10001;
+            width: 170px;
+            min-width: 170px;
+            max-width: 170px;
+            padding: 8px 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(25, 118, 210, 0.18);
+        }
+
+        .custom-multiselect-dropdown.show {
+            display: block;
+        }
+
+        .custom-multiselect-option {
+            display: flex;
+            align-items: center;
+            padding: 10px 18px;
+            font-size: 16px;
+            color: #1976D2;
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            font-family: inherit;
+            border-bottom: none;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .custom-multiselect-option:last-child {
+            /* No border needed, already removed above */
+        }
+
+        .custom-multiselect-option:hover {
+            background: #e3f2fd !important;
+            color: #0d47a1 !important;
+        }
+
+        .custom-multiselect-option input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: #1976D2;
+        }
+
+
+        .type-select {
+            padding: 8px 12px;
+            border: 1.5px solid #1976D2;
+            border-radius: 6px;
+            font-size: 17px;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: linear-gradient(90deg, #f8fafc 0%, #e3f2fd 100%);
+            color: #1565C0;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .type-select:focus,
+        .type-select:hover {
+            border-color: #0d47a1;
+            box-shadow: 0 4px 16px rgba(25, 118, 210, 0.15);
+        }
+
+        .type-select option {
+            font-size: 15px;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            color: #1976D2;
+            padding: 6px 10px;
+            background: #fff;
+        }
+
+
+        .date-picker {
+            padding: 8px 12px;
+            border: 1.5px solid #1976D2;
+            border-radius: 6px;
+            font-size: 17px;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: linear-gradient(90deg, #f8fafc 0%, #e3f2fd 100%);
+            color: #1565C0;
+            margin-left: 10px;
+            display: none;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .date-picker:hover {
+            border-color: #999;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="control-buttons">
+        <div class="custom-multiselect" id="customMultiSelect">
+            <button type="button" class="custom-multiselect-btn" id="customMultiSelectBtn">Select fields</button>
+            <div class="custom-multiselect-dropdown" id="customMultiSelectDropdown">
+                <label class="custom-multiselect-option"><input type="checkbox" value="photo" checked> Photo</label>
+                <label class="custom-multiselect-option"><input type="checkbox" value="name" checked> Name</label>
+                <label class="custom-multiselect-option"><input type="checkbox" value="jobtitle"> Job Title</label>
+                <label class="custom-multiselect-option"><input type="checkbox" value="email"> Email</label>
+                <label class="custom-multiselect-option"><input type="checkbox" value="role" checked> Role</label>
+            </div>
+        </div>
+        <button class="control-button" onclick="expandAll()">Expand All</button>
+        <button class="control-button" onclick="collapseAll()">Collapse All</button>
+        <button class="control-button" onclick="downloadPDF()">Download as PDF</button>
+        <select class="type-select" onchange="handleTypeChange(this.value)">
+            <option value="current">Current</option>
+            <option value="finance">Finance</option>
+            <option value="custom">Custom</option>
+        </select>
+        <input type="date" class="date-picker" onchange="handleDateChange(this.value)">
+    </div>
+    <div id="tree-container">
+        <svg></svg>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvg@3.0.10/lib/umd.min.js"></script>
+
+    <script>
+        const roleColors = {
+            "division supervisor": { fill: "#e3f0ff", stroke: "#1e40af", linkColor: "#1e40af" }, // blue
+            "division leader": { fill: "#fce4ec", stroke: "#ad1457", linkColor: "#ad1457" }, // pink
+            "current": { fill: "#e8f5e9", stroke: "#388e3c", linkColor: "#388e3c" }, // green
+            "group leader": { fill: "#fff8e1", stroke: "#f9a825", linkColor: "#f9a825" }, // yellow
+            "group supervisor": { fill: "#e0f7fa", stroke: "#00838f", linkColor: "#00838f" }, // teal
+            "territory supervisor": { fill: "#f3e5f5", stroke: "#6a1b9a", linkColor: "#6a1b9a" }, // purple
+            "territory manager": { fill: "#fbe9e7", stroke: "#d84315", linkColor: "#d84315" } // orange
+        };
+
+        // --- Custom Multi-Select Dropdown Logic ---
+        (function () {
+            const btn = document.getElementById('customMultiSelectBtn');
+            const dropdown = document.getElementById('customMultiSelectDropdown');
+            const container = document.getElementById('customMultiSelect');
+            const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+
+            function updateBtnLabel() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.parentNode.textContent.trim());
+                btn.textContent = selected.length ? selected.join(', ') : 'Select fields';
+            }
+
+            // Initial label update on page load
+            updateBtnLabel();
+
+            btn.addEventListener('click', function (e) {
+                dropdown.classList.toggle('show');
+                btn.classList.toggle('active');
+            });
+
+
+            // Debounce function to limit how often updateNodeFieldsVisibility runs
+            let updateFieldsTimeout = null;
+            function debounceUpdateNodeFieldsVisibility() {
+                if (updateFieldsTimeout) clearTimeout(updateFieldsTimeout);
+                updateFieldsTimeout = setTimeout(() => {
+                    updateNodeFieldsVisibility();
+                }, 150); // 150ms delay for batching
+            }
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    updateBtnLabel();
+                    dropdown.classList.remove('show');
+                    btn.classList.remove('active');
+                    debounceUpdateNodeFieldsVisibility();
+                });
+            });
+
+            document.addEventListener('mousedown', function (e) {
+                if (!container.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                    btn.classList.remove('active');
+                    updateBtnLabel();
+                }
+            });
+        })();
+
+        let treeRoot; // Store the root node globally
+
+        function downloadPDF() {
+            const container = document.getElementById('tree-container');
+
+            const MAX_SIZE = 14400;
+
+            const originalStyle = {
+                width: container.style.width,
+                height: container.style.height,
+                overflow: container.style.overflow,
+                scrollTop: container.scrollTop,
+                scrollLeft: container.scrollLeft
+            };
+
+            container.style.overflow = 'visible';
+            container.style.width = container.scrollWidth + 'px';
+            container.style.height = container.scrollHeight + 'px';
+
+            const width = container.scrollWidth;
+            const height = container.scrollHeight;
+
+            // Step 2: Define jsPDF max page size (in px)
+            const MAX_PDF_SIZE = 20000; // allow larger page size
+
+            // Step 3: Use a higher scale for even more clarity
+            let scaleFactor = 4;
+            if (width * scaleFactor > MAX_PDF_SIZE || height * scaleFactor > MAX_PDF_SIZE) {
+                scaleFactor = Math.min(MAX_PDF_SIZE / width, MAX_PDF_SIZE / height);
+            }
+
+            const scaledWidth = width * scaleFactor;
+            const scaledHeight = height * scaleFactor;
+
+            html2canvas(container, {
+                backgroundColor: "#fff",
+                useCORS: true,
+                allowTaint: false,
+                imageTimeout: 15000,
+                scale: scaleFactor,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: width,
+                windowHeight: height
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+
+                // Use a larger PDF page size (A2 landscape)
+                const pdf = new window.jspdf.jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'a2'
+                });
+
+                // Calculate dimensions to fit nicely in A2
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                let renderWidth = pageWidth;
+                let renderHeight = (scaledHeight / scaledWidth) * pageWidth;
+                if (renderHeight > pageHeight) {
+                    renderHeight = pageHeight;
+                    renderWidth = (scaledWidth / scaledHeight) * pageHeight;
+                }
+
+                pdf.addImage(imgData, 'PNG', 0, 0, renderWidth, renderHeight);
+                pdf.save('organization-chart.pdf');
+            }).catch(() => {
+                alert('Failed to generate PDF. Please try again.');
+            }).finally(() => {
+                // Restore original styles and scroll
+                container.style.width = originalStyle.width;
+                container.style.height = originalStyle.height;
+                container.style.overflow = originalStyle.overflow;
+                container.scrollTop = originalStyle.scrollTop;
+                container.scrollLeft = originalStyle.scrollLeft;
+            });
+
+        }
+
+
+        function handleTypeChange(value) {
+            const datePicker = document.querySelector('.date-picker');
+            if (value === 'custom') {
+                datePicker.style.display = 'inline-block';
+            } else {
+                datePicker.style.display = 'none';
+                datePicker.value = '';
+                loadData(value);
+            }
+        }
+
+        function handleDateChange(date) {
+            loadData('custom', date);
+        }
+
+        function loadData(type, customDate = null) {
+            // Show loading state
+            const svg = d3.select("svg");
+            svg.selectAll("*").remove();
+
+            let url = apiUrl;
+            let chartType = 0;
+            if (type === 'finance') {
+                chartType = 1;
+            } else if (type === 'custom' && customDate) {
+                chartType = 2;
+            }
+
+            let details = {
+                chartType: chartType,
+                AsOfNow: customDate ? new Date(customDate).toISOString() : null
+            }
+
+            fetch(url, {
+                method: 'POST', // HTTP method
+                headers: {
+                    'Content-Type': 'application/json', // MIME type
+                },
+                body: JSON.stringify(details)
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(rawData => {
+                    if (!rawData || rawData.length === 0) {
+                        throw new Error('No data received');
+                    }
+                    treeRoot = buildHierarchy(rawData);
+                    layoutTree(treeRoot);
+                    renderTree(treeRoot);
+                    updateNodeFieldsVisibility();
+                })
+                .catch(err => {
+                    console.error("Error loading data:", err);
+                    // Show error message in the SVG
+                    svg.selectAll("*").remove();
+                    svg.append("text")
+                        .attr("x", "50%")
+                        .attr("y", "50%")
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "16px")
+                        .style("fill", "red")
+                        .text("Error loading data. Please try again.");
+                });
+        }
+
+        function expandAll() {
+            expandCollapseAll(treeRoot, true);
+            layoutTree(treeRoot);
+            renderTree(treeRoot);
+            // No need to call updateNodeFieldsVisibility here, renderTree redraws everything
+        }
+
+        function collapseAll() {
+            window._centerRootNextRender = true;
+            expandCollapseAll(treeRoot, false);
+            layoutTree(treeRoot);
+            renderTree(treeRoot, true); // pass centerRoot flag
+            // No need to call updateNodeFieldsVisibility here, renderTree redraws everything
+        }
+
+        function expandCollapseAll(node, expand) {
+            if (node._children && expand) {
+                node.children = node._children;
+                node._children = null;
+            } else if (node.children && !expand) {
+                node._children = node.children;
+                node.children = null;
+            }
+            if (node.children) {
+                node.children.forEach(child => expandCollapseAll(child, expand));
+            }
+        }
+
+        const apiUrl = "https://force-dev-api.azurewebsites.net/api/v1/territories/territories/chart-data";
+
+        // Initial load of the page
+        loadData('current');
+
+        // Error handling and loading indicator
+        window.addEventListener('load', () => {
+            // Set default selection
+            document.querySelector('.type-select').value = 'current';
+            document.querySelector('.date-picker').style.display = 'none';
+        });
+
+        function buildHierarchy(data) {
+            try {
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error('Invalid data structure');
+                }
+
+                const map = {};
+                data.forEach(d => {
+                    if (d && d.nodeId) {
+                        map[d.nodeId] = { ...d, children: [] };
+                    }
+                });
+
+                let root = null;
+                data.forEach(d => {
+                    if (d.parentNodeId === null) {
+                        root = map[d.nodeId];
+                    } else if (map[d.parentNodeId] && map[d.nodeId]) {
+                        map[d.parentNodeId].children.push(map[d.nodeId]);
+                    }
+                });
+
+                if (!root) {
+                    throw new Error('No root node found in data');
+                }
+
+                return d3.hierarchy(root);
+            } catch (error) {
+                console.error('Error building hierarchy:', error);
+                throw error;
+            }
+        }
+
+        function layoutTree(root) {
+            // Use D3's tree layout with fixed vertical spacing, as before
+            const horizontalSpacing = 210; // More space between siblings
+            let verticalSpacing = 140;  // Standard space between parent/child (reverted)
+            const checkboxes = document.querySelectorAll('#customMultiSelectDropdown input[type="checkbox"]');
+            const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            if(selected.includes('photo') && (selected.includes('email') || selected.includes('jobtitle')) && selected.includes('name') && selected.includes('role')){
+                // If all fields are selected, increase vertical spacing to accommodate larger boxes
+                verticalSpacing = 160; // Uncomment if needed
+            }
+            const treeLayout = d3.tree()
+                .nodeSize([horizontalSpacing, verticalSpacing])
+                .separation((a, b) => 1);
+            treeLayout(root);
+
+            // Removed manual leaf positioning to prevent overlap; let D3 handle spacing
+
+            const allNodes = root.descendants();
+            if (!window._centerRootNextRender) {
+                const minX = d3.min(allNodes, d => d.x);
+                allNodes.forEach(d => {
+                    d.x = d.x - minX + 20;
+                });
+            }
+            window._centerRootNextRender = false;
+        }
+
+
+        function renderTree(root) {
+            const svg = d3.select("svg");
+            svg.selectAll("*").remove();
+
+            const nodes = root.descendants();
+            const links = root.links();
+
+            // Get selected fields from dropdown
+            const checkboxes = document.querySelectorAll('#customMultiSelectDropdown input[type="checkbox"]');
+            const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+            // Define boxWidth and nameRoleMaxWidth at the top so they are available everywhere
+            const boxWidth = 100; // Smaller default width
+            let nameRoleMaxWidth = boxWidth - 12;
+
+            // Helper to measure text width
+            function measureText(text, fontSize = 15, fontWeight = 'bold') {
+                const tempSvg = d3.select('body').append('svg').attr('width', 0).attr('height', 0);
+                const tempText = tempSvg.append('text')
+                    .style('font-size', fontSize + 'px')
+                    .style('font-weight', fontWeight)
+                    .style('font-family', 'Segoe UI, Arial, sans-serif')
+                    .text(text);
+                const width = tempText.node().getComputedTextLength();
+                tempSvg.remove();
+                return width;
+            }
+
+            // Compute box size for each node based on visible fields
+            const minBoxWidth = 100;
+            const minBoxHeight = 100;
+            const nodeBoxYOffset = 20;
+            let IsAllFieldAvailable = false;
+            nodes.forEach(d => {
+                const hasPhoto = selected.includes('photo');
+                const textX = hasPhoto ? 56 + 24 : 20; // 56px photo + 24px padding, or just 20px padding
+                const fieldOrder = [];
+                if (selected.includes('name')) fieldOrder.push('name');
+                if (selected.includes('role')) fieldOrder.push('role');
+                if (selected.includes('email')) fieldOrder.push('email');
+                if (selected.includes('jobtitle')) fieldOrder.push('jobtitle');
+
+                // Calculate text block height and max width
+                let textBlockHeight = 0;
+                let maxTextWidth = 0;
+                fieldOrder.forEach(field => {
+                    let text = '';
+                    let fontSize = 15;
+                    let fontWeight = 'bold';
+                    if (field === 'name') {
+                        text = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
+                        fontSize = 15;
+                        fontWeight = 'bold';
+                    } else if (field === 'role') {
+                        text = (d.data.role || '').trim();
+                        fontSize = 12;
+                        fontWeight = '400';
+                    } else if (field === 'email') {
+                        text = d.data.email || '';
+                        fontSize = 12;
+                        fontWeight = '400';
+                    } else if (field === 'jobtitle') {
+                        text = d.data.jobTitle || '';
+                        fontSize = 12;
+                        fontWeight = '400';
+                    }
+                    const textW = measureText(text, fontSize, fontWeight);
+                    maxTextWidth = Math.max(maxTextWidth, textW);
+                    textBlockHeight += fontSize + 8; // 8px gap below each line
+                });
+                if (textBlockHeight > 0) textBlockHeight -= 8; // remove last gap
+
+                // Calculate box size
+                let boxWidth = 180;
+                let boxHeight = 90;
+                if (hasPhoto && (selected.includes('email') || selected.includes('jobtitle')) && selected.includes('name') && selected.includes('role')) {
+                    boxHeight = 120;
+                    IsAllFieldAvailable = true;
+                }
+                d.boxWidth = boxWidth;
+                d.boxHeight = boxHeight;
+                d.textX = textX;
+                d.textBlockHeight = textBlockHeight;
+            });
+
+            const xExtent = d3.extent(nodes, d => d.x);
+            const yExtent = d3.extent(nodes, d => d.y);
+
+            // Calculate bounding box for the tree
+            const minWidth = 900;
+            const minHeight = 600;
+            let width = xExtent[1] - xExtent[0] + 300;
+            let height = yExtent[1] - yExtent[0] + 300;
+            if (width < minWidth) width = minWidth;
+            if (height < minHeight) height = minHeight;
+            svg.attr("width", width).attr("height", height);
+
+            // Center the root node horizontally and vertically if requested (centerRoot flag)
+            let centerRoot = false;
+            if (arguments.length > 1 && arguments[1] === true) centerRoot = true;
+            let translateX = 150 - xExtent[0];
+            let translateY = 100 - yExtent[0];
+            if (centerRoot && nodes.length > 0) {
+                // Center the root node in the SVG viewport
+                const rootNode = nodes[0];
+                translateX = width / 2 - rootNode.x;
+                translateY = height / 2 - rootNode.y;
+            }
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${translateX},${translateY})`);
+
+            // Draw links between nodes
+            g.selectAll(".link")
+                .data(links)
+                .join("path")
+                .attr("class", "link")
+                .attr("stroke", d => {
+                    const role = d.target.data.role?.toLowerCase();
+                    // Use linkColor from roleColors if available, else fallback to blue
+                    return (roleColors[role]?.linkColor) || "#1565C0";
+                })
+                .attr("stroke-width", 2.5)
+                .attr("fill", "none")
+                .attr("d", d => {
+                    const startX = d.source.x;
+                    const startY = d.source.y + nodeBoxYOffset + (d.source.boxHeight || 110);
+                    const endX = d.target.x;
+                    const endY = d.target.y + nodeBoxYOffset;
+                    return `M${startX},${startY} V${(startY + endY) / 2} H${endX} V${endY}`;
+                });
+
+            // Draw nodes
+            const node = g.selectAll(".node")
+                .data(nodes)
+                .join("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`); // d.y is now set by setY and includes extra spacing
+
+
+            // Draw node box
+            node.append("rect")
+                .attr("class", "node-box")
+                .attr("x", d => -d.boxWidth / 2)
+                .attr("y", 20)
+                .attr("width", d => d.boxWidth)
+                .attr("height", d => d.boxHeight)
+                .attr("rx", 18)
+                .attr("ry", 18)
+                .attr("fill", d => {
+                    const role = d.data.role?.toLowerCase();
+                    return roleColors[role]?.fill || "#f0f0f0";
+                })
+                .attr("stroke", d => {
+                    const role = d.data.role?.toLowerCase();
+                    return roleColors[role]?.stroke || "#1565C0";
+                })
+                .style("cursor", "pointer")
+                .style("pointer-events", "all")
+                .on("click", function (event, d) {
+                    event.stopPropagation();
+                    try {
+                        showNodePopup(d.data);
+                        const popup = document.getElementById('node-popup');
+                        if (popup) {
+                            popup.style.display = 'block';
+                            popup.style.zIndex = '9999';
+                            popup.style.pointerEvents = 'auto';
+                            void popup.offsetWidth;
+                            popup.style.right = '0';
+                        }
+                    } catch (e) {
+                        console.error("Popup error:", e);
+                    }
+                });
+
+            // Add profile image
+            // Calculate Y positions for visible fields
+
+            let isImageVisible = false;
+            // Photo is always at the left, vertically centered with text block or box
+            if (selected.includes('photo')) {
+                isImageVisible = true;
+                node.append("image")
+                    .attr("class", "node-photo node-field-photo")
+                    .attr("href", d => d.data.profileImage)
+                    .attr("x", d => -d.boxWidth / 2 + 20)
+                    .attr("y", d => IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
+                    .attr("width", 54)
+                    .attr("height", 54)
+                    .attr("clip-path", "circle(26px at 26px 26px)")
+                    .style("cursor", "pointer")
+                    .on("click", function (event, d) {
+                        event.stopPropagation();
+                        try {
+                            showNodePopup(d.data);
+                            const popup = document.getElementById('node-popup');
+                            if (popup) {
+                                popup.style.display = 'block';
+                                popup.style.zIndex = '9999';
+                                popup.style.pointerEvents = 'auto';
+                                void popup.offsetWidth;
+                                popup.style.right = '0';
+                            }
+                        } catch (e) {
+                            console.error("Popup error:", e);
+                        }
+                    });
+            }
+            else {
+                nameRoleMaxWidth = boxWidth + 40;
+            }
+
+            // Always render all possible fields, toggle visibility for instant feedback
+            node.each(function (d) {
+                d3.select(this).selectAll('.node-label, .node-role, .node-email, .node-jobtitle').remove();
+                const fieldDefs = [
+                    {
+                        key: 'name',
+                        className: 'node-label node-field-name',
+                        fontSize: 15,
+                        fontWeight: 'bold',
+                        fill: '#222',
+                        getText: () => {
+                            const name = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
+                            return truncateTextToWidth(name, nameRoleMaxWidth);
+                        },
+                        fullText: () => (d.data.firstName + ' ' + (d.data.lastName || '')).trim()
+                    },
+                    {
+                        key: 'role',
+                        className: 'node-role node-field-role',
+                        fontSize: 12,
+                        fontWeight: '400',
+                        fill: '#555',
+                        getText: () => {
+                            const role = (d.data.role || '').trim();
+                            return truncateTextToWidth(role, nameRoleMaxWidth + 24);
+                        },
+                        fullText: () => (d.data.role || '').trim()
+                    },
+                    {
+                        key: 'email',
+                        className: 'node-email node-field-email',
+                        fontSize: 12,
+                        fontWeight: '400',
+                        fill: '#555',
+                        getText: () => truncateTextToWidth(d.data.email || '',
+                            IsAllFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                        fullText: () => (d.data.email || '').trim()
+                    },
+                    {
+                        key: 'jobtitle',
+                        className: 'node-jobtitle node-field-jobtitle',
+                        fontSize: 12,
+                        fontWeight: '400',
+                        fill: '#555',
+                        getText: () => truncateTextToWidth(d.data.jobTitle || '', IsAllFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                        fullText: () => (d.data.jobTitle || '').trim()
+                    }
+                ];
+                // Only visible fields affect vertical stacking
+                let y = 25 + (d.boxHeight - d.textBlockHeight) / 2;
+                if (IsAllFieldAvailable) {
+                    if (selected.includes('jobtitle') && selected.includes('email'))
+                        y = 30 + (d.boxHeight - d.textBlockHeight) / 2;
+                    else
+                        y = 20 + (d.boxHeight - d.textBlockHeight) / 2;
+                }
+                fieldDefs.forEach(field => {
+                    if (selected.includes(field.key)) {
+                        d3.select(this).append('text')
+                            .attr('class', field.className)
+                            .attr('x', field.key == 'jobtitle' || field.key == 'email' ? d => -d.boxWidth / 2 + 20 : d => -d.boxWidth / 2 + d.textX)
+                            .attr('y', y)
+                            .attr('dy', '0.4em')
+                            .attr('text-anchor', 'start')
+                            .style('font-size', field.fontSize + 'px')
+                            .style('font-weight', field.fontWeight)
+                            .style('fill', field.fill)
+                            .style('cursor', 'pointer')
+                            .text(field.getText)
+                            .on('click', function (event) {
+                                event.stopPropagation();
+                                try {
+                                    showNodePopup(d.data);
+                                    const popup = document.getElementById('node-popup');
+                                    if (popup) {
+                                        popup.style.display = 'block';
+                                        popup.style.zIndex = '9999';
+                                        popup.style.pointerEvents = 'auto';
+                                        void popup.offsetWidth;
+                                        popup.style.right = '0';
+                                    }
+                                } catch (e) {
+                                    console.error("Popup error:", e);
+                                }
+                            })
+                            .append('title')
+                            .text(field.fullText);
+                        y += field.fontSize + 8;
+                    }
+                });
+            });
+
+            const nameRoleX = -84;
+            const jobEmailX = -100;
+            // (Removed duplicate declaration of boxWidth and nameRoleMaxWidth)
+            const jobEmailMaxWidth = boxWidth - 10;
+
+            // Name
+            // ...removed duplicate static text rendering for name...
+
+            // Role
+            // ...removed duplicate static text rendering for role...
+
+            // Job Title
+            // ...removed duplicate static text rendering for jobtitle...
+
+            // Email
+            // ...removed duplicate static text rendering for email...
+
+            // Add toggle expand/collapse icons
+            const toggleNodes = node.filter(d => d.children || d._children);
+            const svgForGrad = d3.select('svg');
+            if (svgForGrad.select('defs#toggle-gradient-defs').empty()) {
+                const defs = svgForGrad.append('defs').attr('id', 'toggle-gradient-defs');
+                const grad = defs.append('linearGradient')
+                    .attr('id', 'toggle-blue-gradient')
+                    .attr('x1', '0%').attr('y1', '0%')
+                    .attr('x2', '0%').attr('y2', '100%');
+                grad.append('stop').attr('offset', '0%').attr('stop-color', '#1565C0');
+                grad.append('stop').attr('offset', '100%').attr('stop-color', '#42a5f5');
+            }
+
+            // Use per-node boxHeight for dynamic sizing
+            const iconY = d => nodeBoxYOffset + (d.boxHeight || 110);
+
+            toggleNodes.append("circle")
+                .attr("class", "toggle-circle")
+                .attr("cx", 0)
+                .attr("cy", d => iconY(d))
+                .attr("r", 11)
+                .attr("fill", "url(#toggle-blue-gradient)")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .style("filter", "drop-shadow(0 1px 2px rgba(25,118,210,0.10))")
+                .style("cursor", "pointer")
+                .on("click", function (event, d) {
+                    event.stopPropagation();
+                    if (d.children) {
+                        d._children = d.children;
+                        d.children = null;
+                    } else if (d._children) {
+                        d.children = d._children;
+                        d._children = null;
+                        d.children.forEach(child => {
+                            if (child.children) {
+                                child._children = child.children;
+                                child.children = null;
+                            }
+                        });
+                    }
+                    layoutTree(root);
+                    renderTree(root);
+                    updateNodeFieldsVisibility();
+                });
+
+            // Horizontal line
+            toggleNodes.append("path")
+                .attr("d", d => `M${-6.5},${iconY(d)} H${6.5}`)
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2.2)
+                .attr("stroke-linecap", "round")
+                .style("cursor", "pointer")
+                .on("click", function (event, d) {
+                    event.stopPropagation();
+                    if (d.children) {
+                        d._children = d.children;
+                        d.children = null;
+                    } else if (d._children) {
+                        d.children = d._children;
+                        d._children = null;
+                        d.children.forEach(child => {
+                            if (child.children) {
+                                child._children = child.children;
+                                child.children = null;
+                            }
+                        });
+                    }
+                    layoutTree(root);
+                    renderTree(root);
+                    updateNodeFieldsVisibility();
+                });
+            // Vertical line for collapsed nodes only
+            toggleNodes.filter(d => !d.children)
+                .append("path")
+                .attr("d", d => `M0,${iconY(d) - 7} V${iconY(d) + 7}`)
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2.2)
+                .attr("stroke-linecap", "round")
+                .style("cursor", "pointer")
+                .on("click", function (event, d) {
+                    event.stopPropagation();
+                    if (d.children) {
+                        d._children = d.children;
+                        d.children = null;
+                    } else if (d._children) {
+                        d.children = d._children;
+                        d._children = null;
+                        d.children.forEach(child => {
+                            if (child.children) {
+                                child._children = child.children;
+                                child.children = null;
+                            }
+                        });
+                    }
+                    layoutTree(root);
+                    renderTree(root);
+                    updateNodeFieldsVisibility();
+                });
+
+            // --- Popup logic ---
+            // Add a right-side sliding popup to show node details when the box is clicked
+            // Only add the popup container once
+            if (!document.getElementById('node-popup')) {
+                const popup = document.createElement('div');
+                popup.id = 'node-popup';
+                popup.style.position = 'fixed';
+                popup.style.top = '0';
+                popup.style.right = '-400px';
+                popup.style.width = '400px';
+                popup.style.height = '100%';
+                popup.style.background = '#fff';
+                popup.style.boxShadow = '-2px 0 16px rgba(25,118,210,0.10)';
+                popup.style.transition = 'right 0.4s cubic-bezier(.4,0,.2,1)';
+                popup.style.zIndex = '2000';
+                popup.style.overflowY = 'auto';
+                popup.style.fontFamily = "'Segoe UI', 'Arial', 'Helvetica Neue', 'Roboto', sans-serif";
+                popup.style.display = 'none';
+                popup.innerHTML = `<button id=\"close-popup-btn\" style=\"z-index: 2000;position:absolute;top:18px;right:18px;background:none;border:none;font-size:28px;color:#fff;cursor:pointer;\">&times;</button><div id=\"popup-content\"></div>`;
+                document.body.appendChild(popup);
+            }
+            // Always re-attach close button event to ensure it works after re-render
+            const closeBtn = document.getElementById('close-popup-btn');
+            if (closeBtn) {
+                closeBtn.onclick = function () {
+                    const popup = document.getElementById('node-popup');
+                    if (popup) {
+                        popup.style.right = '-400px';
+                        setTimeout(() => { popup.style.display = 'none'; }, 400); // match transition
+                    }
+                };
+            }
+
+            window.showNodePopup = function (data) {
+                const popup = document.getElementById('node-popup');
+                const content = document.getElementById('popup-content');
+                if (!popup || !content) return;
+                // Fill in details
+                content.innerHTML = `
+                <div style="display: flex; align-items: start; margin-bottom: 24px; width: 100%; flex-direction: column;">
+
+    <!-- Header Section -->
+    <div style="background-color: #1976D2; color: white; height: 150px; width: 100%; position: relative;">
+
+      <!-- Name centered at top -->
+      <h2 style="margin: 0; font-size: 25px; text-align: center;margin-top:20px;">${data.firstName + ' ' + (data.lastName || '')}</h2>
+
+      <!-- Profile Image at bottom center -->
+    <img src="${data.profileImage}" alt="Profile"
+         style="width: 140px; height: 140px; border-radius: 50%; border: 4px solid white;
+            position: absolute; left: 50%; transform: translateX(-50%);
+            bottom: -70px;">
+    </div>  
+
+    <!-- Details Section -->
+    <div style="background-color: #fff; color: white; padding-top: 60px; padding-bottom: 20px; text-align: center;">
+      <div style="margin-top: 10px; text-align: left; padding: 0 20px;">
+        <p style="margin: 5px 0; color: #000;">Name</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.firstName + ' ' + (data.lastName || '')}</p>
+
+        <p style="margin: 5px 0; color: #000;">Email</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.email}</p>
+
+        <p style="margin: 5px 0; color: #000;">Role</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.role}</p>
+
+        <p style="margin: 5px 0; color: #000;">Job Title</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.jobTitle || '-'}</p>
+      </div>
+    </div> 
+
+  </div>            
+            `;
+                popup.style.display = 'block';
+                // Force reflow to allow transition
+                void popup.offsetWidth;
+                popup.style.right = '0';
+            };
+        }
+
+        // Helper function to truncate text to fit max width in SVG
+        function truncateTextToWidth(text, maxWidth, fontSize = 15, fontWeight = 'bold', fontFamily = 'Segoe UI, Arial, sans-serif') {
+            // Create a temporary SVG text element to measure width
+            const tempSvg = d3.select('body').append('svg').attr('width', 0).attr('height', 0);
+            const tempText = tempSvg.append('text')
+                .style('font-size', fontSize + 'px')
+                .style('font-weight', fontWeight)
+                .style('font-family', fontFamily)
+                .text(text);
+            let displayText = text;
+            let truncated = false;
+            while (tempText.node().getComputedTextLength() > maxWidth && displayText.length > 0) {
+                displayText = displayText.slice(0, -1);
+                truncated = true;
+                tempText.text(displayText + '...');
+            }
+            let result = tempText.text();
+            // Only show ellipsis if text was actually truncated
+            if (!truncated) {
+                result = text;
+            }
+            tempSvg.remove();
+            return result;
+        }
+
+        // Store last selected fields to avoid unnecessary re-renders
+        let lastSelectedFields = [];
+        function arraysEqual(a, b) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] !== b[i]) return false;
+            }
+            return true;
+        }
+
+        // Add spinner element to DOM (hidden by default)
+        if (!document.getElementById('tree-loading-spinner')) {
+            const spinner = document.createElement('div');
+            spinner.id = 'tree-loading-spinner';
+            spinner.style.position = 'fixed';
+            spinner.style.top = '0';
+            spinner.style.left = '0';
+            spinner.style.width = '100vw';
+            spinner.style.height = '100vh';
+            spinner.style.background = 'rgba(255,255,255,0.5)';
+            spinner.style.display = 'flex';
+            spinner.style.alignItems = 'center';
+            spinner.style.justifyContent = 'center';
+            spinner.style.zIndex = '99999';
+            spinner.style.display = 'none';
+            spinner.innerHTML = '<div style="border: 6px solid #e3f0ff; border-top: 6px solid #1976D2; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite;"></div>';
+            document.body.appendChild(spinner);
+            // Add keyframes for spin
+            const style = document.createElement('style');
+            style.innerHTML = '@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }';
+            document.head.appendChild(style);
+        }
+
+        function showSpinner() {
+            document.getElementById('tree-loading-spinner').style.display = 'flex';
+        }
+        function hideSpinner() {
+            document.getElementById('tree-loading-spinner').style.display = 'none';
+        }
+
+        function updateNodeFieldsVisibility() {
+            // Use cached selected fields if available, else fallback to DOM
+            let selected = typeof getSelectedFields === 'function' ? getSelectedFields() : Array.from(document.querySelectorAll('#customMultiSelectDropdown input[type="checkbox"]')).filter(cb => cb.checked).map(cb => cb.value).sort();
+            // Only update if fields actually changed
+            if (!arraysEqual(selected, lastSelectedFields)) {
+                // Determine if box size/layout fields changed (photo or name)
+                const affectsLayout = (arr1, arr2) => {
+                    const layoutFields = ['photo', 'name'];
+                    return layoutFields.some(f => arr1.includes(f) !== arr2.includes(f));
+                };
+                const layoutChanged = true;
+                lastSelectedFields = selected.slice();
+                if (layoutChanged) {
+                    showSpinner();
+                    setTimeout(() => {
+                        if (typeof treeRoot !== 'undefined' && treeRoot) {
+                            layoutTree(treeRoot);
+                            renderTree(treeRoot);
+                        }
+                        hideSpinner();
+                    }, 50);
+                } else {
+                    // Only show/hide fields in-place for instant feedback
+                    document.querySelectorAll('.node-field-jobtitle').forEach(el => el.style.display = selected.includes('jobtitle') ? '' : 'none');
+                    document.querySelectorAll('.node-field-photo').forEach(el => el.style.display = selected.includes('photo') ? '' : 'none');
+                    document.querySelectorAll('.node-field-name').forEach(el => el.style.display = selected.includes('name') ? '' : 'none');
+                    document.querySelectorAll('.node-field-role').forEach(el => el.style.display = selected.includes('role') ? '' : 'none');
+                    document.querySelectorAll('.node-field-email').forEach(el => el.style.display = selected.includes('email') ? '' : 'none');
+                }
+            }
+        }
+
+        function enableMouseDragScroll(container) {
+            let isDown = false;
+            let startX, startY;
+            let scrollLeft, scrollTop;
+
+            container.addEventListener('mousedown', (e) => {
+                isDown = true;
+                container.classList.add('dragging');
+                startX = e.pageX - container.offsetLeft;
+                startY = e.pageY - container.offsetTop;
+                scrollLeft = container.scrollLeft;
+                scrollTop = container.scrollTop;
+            });
+
+            container.addEventListener('mouseleave', () => {
+                isDown = false;
+                container.classList.remove('dragging');
+            });
+
+            container.addEventListener('mouseup', () => {
+                isDown = false;
+                container.classList.remove('dragging');
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - container.offsetLeft;
+                const y = e.pageY - container.offsetTop;
+                const walkX = x - startX;
+                const walkY = y - startY;
+                container.scrollLeft = scrollLeft - walkX;
+                container.scrollTop = scrollTop - walkY;
+            });
+        }
+
+        // Enable drag scrolling on page load
+        document.addEventListener("DOMContentLoaded", function () {
+            const container = document.getElementById('tree-container');
+            enableMouseDragScroll(container);
+        });
+    </script>
+</body>
+
+</html>

@@ -558,7 +558,7 @@
             let verticalSpacing = 140;  // Standard space between parent/child (reverted)
             const checkboxes = document.querySelectorAll('#customMultiSelectDropdown input[type="checkbox"]');
             const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            if(selected.includes('photo') && (selected.includes('email') || selected.includes('jobtitle')) && selected.includes('name') && selected.includes('role')){
+            if (selected.includes('photo') && (selected.includes('email') || selected.includes('jobtitle'))) {
                 // If all fields are selected, increase vertical spacing to accommodate larger boxes
                 verticalSpacing = 160; // Uncomment if needed
             }
@@ -613,6 +613,7 @@
             const minBoxHeight = 100;
             const nodeBoxYOffset = 20;
             let IsAllFieldAvailable = false;
+            let IsEmailOrJobTitleFieldAvailable = false;
             nodes.forEach(d => {
                 const hasPhoto = selected.includes('photo');
                 const textX = hasPhoto ? 56 + 24 : 20; // 56px photo + 24px padding, or just 20px padding
@@ -654,10 +655,16 @@
 
                 // Calculate box size
                 let boxWidth = 180;
-                let boxHeight = 90;
-                if (hasPhoto && (selected.includes('email') || selected.includes('jobtitle')) && selected.includes('name') && selected.includes('role')) {
-                    boxHeight = 120;
-                    IsAllFieldAvailable = true;
+                let boxHeight = 100;
+                if (hasPhoto) {
+                    if (selected.includes('email') && selected.includes('jobtitle')) {
+                        boxHeight = 120;
+                        IsAllFieldAvailable = true;
+                    }
+                    else if (selected.includes('email') || selected.includes('jobtitle')) {
+                        boxHeight = 100;
+                        IsEmailOrJobTitleFieldAvailable = true;
+                    }
                 }
                 d.boxWidth = boxWidth;
                 d.boxHeight = boxHeight;
@@ -767,7 +774,7 @@
                     .attr("class", "node-photo node-field-photo")
                     .attr("href", d => d.data.profileImage)
                     .attr("x", d => -d.boxWidth / 2 + 20)
-                    .attr("y", d => IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
+                    .attr("y", d => IsEmailOrJobTitleFieldAvailable ? 20 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
                     .attr("width", 54)
                     .attr("height", 54)
                     .attr("clip-path", "circle(26px at 26px 26px)")
@@ -828,7 +835,7 @@
                         fontWeight: '400',
                         fill: '#555',
                         getText: () => truncateTextToWidth(d.data.email || '',
-                            IsAllFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                            IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
                         fullText: () => (d.data.email || '').trim()
                     },
                     {
@@ -837,24 +844,32 @@
                         fontSize: 12,
                         fontWeight: '400',
                         fill: '#555',
-                        getText: () => truncateTextToWidth(d.data.jobTitle || '', IsAllFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                        getText: () => truncateTextToWidth(d.data.jobTitle || '', IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
                         fullText: () => (d.data.jobTitle || '').trim()
                     }
                 ];
                 // Only visible fields affect vertical stacking
                 let y = 25 + (d.boxHeight - d.textBlockHeight) / 2;
                 if (IsAllFieldAvailable) {
-                    if (selected.includes('jobtitle') && selected.includes('email'))
-                        y = 30 + (d.boxHeight - d.textBlockHeight) / 2;
-                    else
-                        y = 20 + (d.boxHeight - d.textBlockHeight) / 2;
+                    y = 30 + (d.boxHeight - d.textBlockHeight) / 2;
+                }
+                let IsNameOrJobAvailable = false;
+                if(selected.includes('name') && selected.includes('role')){
+                    IsNameOrJobAvailable = false;
+                }
+                else if(selected.includes('name') || selected.includes('role')){
+                    IsNameOrJobAvailable = true;
+                }
+                else if((IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && !(selected.includes('name') && selected.includes('role'))){
+                     y = 50 + (d.boxHeight - d.textBlockHeight) / 2;
                 }
                 fieldDefs.forEach(field => {
                     if (selected.includes(field.key)) {
                         d3.select(this).append('text')
                             .attr('class', field.className)
                             .attr('x', field.key == 'jobtitle' || field.key == 'email' ? d => -d.boxWidth / 2 + 20 : d => -d.boxWidth / 2 + d.textX)
-                            .attr('y', y)
+                            .attr('y', (field.key == 'jobtitle' || field.key == 'email') && (IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && IsNameOrJobAvailable
+                            ? y + 10 : y) 
                             .attr('dy', '0.4em')
                             .attr('text-anchor', 'start')
                             .style('font-size', field.fontSize + 'px')

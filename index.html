@@ -242,6 +242,12 @@
 
 <body>
     <div class="control-buttons">
+        <select class="type-select" onchange="handleTypeChange(this.value)">
+            <option value="current">Current</option>
+            <option value="finance">Finance</option>
+            <option value="custom">Custom</option>
+        </select>
+        <input type="date" class="date-picker" onchange="handleDateChange(this.value)">
         <div class="custom-multiselect" id="customMultiSelect">
             <button type="button" class="custom-multiselect-btn" id="customMultiSelectBtn">Select fields</button>
             <div class="custom-multiselect-dropdown" id="customMultiSelectDropdown">
@@ -255,13 +261,6 @@
         <button class="control-button" onclick="expandAll()">Expand All</button>
         <button class="control-button" onclick="collapseAll()">Collapse All</button>
         <button class="control-button" onclick="downloadPDF()">Download as PDF</button>
-        <select class="type-select" onchange="handleTypeChange(this.value)">
-            <option value="current">Current</option>
-            <option value="finance">Finance</option>
-            <option value="custom">Custom</option> 
-            <option value="Test">Test</option> 
-        </select>
-        <input type="date" class="date-picker" onchange="handleDateChange(this.value)">
     </div>
     <div id="tree-container">
         <svg></svg>
@@ -592,6 +591,10 @@
             const checkboxes = document.querySelectorAll('#customMultiSelectDropdown input[type="checkbox"]');
             const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
 
+            let OnlyOneFieldSelected = false;
+            if (selected != null && selected.length == 1) {
+                OnlyOneFieldSelected = true;
+            }
             // Define boxWidth and nameRoleMaxWidth at the top so they are available everywhere
             const boxWidth = 100; // Smaller default width
             let nameRoleMaxWidth = boxWidth - 12;
@@ -774,7 +777,7 @@
                 node.append("image")
                     .attr("class", "node-photo node-field-photo")
                     .attr("href", d => d.data.profileImage)
-                    .attr("x", d => -d.boxWidth / 2 + 20)
+                    .attr("x", d => OnlyOneFieldSelected ? -30 : -d.boxWidth / 2 + 20)
                     .attr("y", d => IsEmailOrJobTitleFieldAvailable ? 20 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
                     .attr("width", 54)
                     .attr("height", 54)
@@ -855,24 +858,32 @@
                     y = 30 + (d.boxHeight - d.textBlockHeight) / 2;
                 }
                 let IsNameOrJobAvailable = false;
-                if(selected.includes('name') && selected.includes('role')){
+                if (selected.includes('name') && selected.includes('role')) {
                     IsNameOrJobAvailable = false;
                 }
-                else if(selected.includes('name') || selected.includes('role')){
+                else if (selected.includes('name') || selected.includes('role')) {
                     IsNameOrJobAvailable = true;
                 }
-                else if((IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && !(selected.includes('name') && selected.includes('role'))){
-                     y = 50 + (d.boxHeight - d.textBlockHeight) / 2;
+                else if ((IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && !(selected.includes('name') && selected.includes('role'))) {
+                    y = 50 + (d.boxHeight - d.textBlockHeight) / 2;
                 }
                 fieldDefs.forEach(field => {
                     if (selected.includes(field.key)) {
                         d3.select(this).append('text')
                             .attr('class', field.className)
-                            .attr('x', field.key == 'jobtitle' || field.key == 'email' ? d => -d.boxWidth / 2 + 20 : d => -d.boxWidth / 2 + d.textX)
+                            .attr('x', () => {
+                                if (OnlyOneFieldSelected) {
+                                    return 0; // center
+                                } else if (field.key === 'jobtitle' || field.key === 'email') {
+                                    return -d.boxWidth / 2 + 20;
+                                } else {
+                                    return -d.boxWidth / 2 + d.textX;
+                                }
+                            })
                             .attr('y', (field.key == 'jobtitle' || field.key == 'email') && (IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && IsNameOrJobAvailable
-                            ? y + 10 : y) 
+                                ? y + 10 : y)
                             .attr('dy', '0.4em')
-                            .attr('text-anchor', 'start')
+                            .attr('text-anchor',  d => OnlyOneFieldSelected ? 'middle' : 'start')
                             .style('font-size', field.fontSize + 'px')
                             .style('font-weight', field.fontWeight)
                             .style('fill', field.fill)
@@ -1240,8 +1251,3 @@
 </body>
 
 </html>
-
-
-
-
-

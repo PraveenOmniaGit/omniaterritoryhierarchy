@@ -244,7 +244,7 @@
     <div class="control-buttons">
         <select class="type-select" onchange="handleTypeChange(this.value)">
             <option value="current">Current</option>
-            <option value="finance">Finance</option>
+            <option value="finance">Financial</option>
             <option value="custom">Custom</option>
         </select>
         <input type="date" class="date-picker" onchange="handleDateChange(this.value)">
@@ -507,6 +507,157 @@
             }
         }
 
+        function cloneDataWithoutTreeProps(data) {
+            const copy = JSON.parse(JSON.stringify(data));
+            // Strip any existing tree references so only our single path renders
+            delete copy.children;
+            delete copy._children;
+            return copy;
+        }
+
+        function openChainDrawer(node) {
+            // Build only root -> clicked chain
+            const chain = node.ancestors().reverse();
+
+            // Build a minimal linear hierarchy with NO side branches
+            const rootData = cloneDataWithoutTreeProps(chain[0].data);
+            let current = rootData;
+            for (let i = 1; i < chain.length; i++) {
+                const childCopy = cloneDataWithoutTreeProps(chain[i].data);
+                current.children = [childCopy];  // single path only
+                current = childCopy;
+            }
+
+            // Convert to d3.hierarchy
+            const chainRoot = d3.hierarchy(rootData);
+
+            // Layout as a tree
+            const treeLayout = d3.tree().nodeSize([120, 100]);
+            treeLayout(chainRoot);
+
+            // Render into drawer
+            renderChainTree(chainRoot);
+        }
+
+        function renderChainTree(root) {
+            const svg = d3.select("#chain-container svg");
+            svg.selectAll("*").remove();
+
+            const nodes = root.descendants();
+            const links = root.links();
+
+            const xExtent = d3.extent(nodes, d => d.x);
+            const yExtent = d3.extent(nodes, d => d.y);
+            let width = xExtent[1] - xExtent[0] + 700;
+            let height = yExtent[1] - yExtent[0] + 150;
+            svg.attr("width", width).attr("height", height);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${100 - xExtent[0]},0)`);
+
+            // Links
+            g.selectAll(".link")
+                .data(links)
+                .join("path")
+                .attr("stroke", "#999")
+                .attr("fill", "none")
+                .attr("stroke-width", 2)
+                .attr("d", d => `M${d.source.x - 10},${d.source.y + 60} L${d.target.x - 10},${d.target.y + 70}`);
+
+            // Nodes
+            const node = g.selectAll(".node")
+                .data(nodes)
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y + 30})`);
+
+            node.append("rect")
+                .attr("x", -50).attr("y", 20)
+                .attr("width", 80).attr("height", 80)
+                .attr("rx", "50%").attr("ry", "50%")
+                .attr("fill", "#e3f2fd")
+                .attr("stroke", "#1565C0");
+
+            node.append("image")
+                .attr("class", "node-photo node-field-photo")
+                .attr("href", d => d.data.profileImage)
+                .attr("x", -45)
+                .attr("y", 25)
+                .attr("width", 70)
+                .attr("height", 70)
+                .attr("clip-path", "circle(35px at 35px 35px)")
+                .style("cursor", "pointer");
+
+            node.append("text")
+                .attr("dy", "3.2em")
+                .attr("x", 40)
+                .attr("y", d => {
+                    if (d.depth === 0) {
+                        // root node → take first word of firstName
+                        return 10;
+                    } else {
+                        return -10;
+                    }
+                })
+                .attr("text-anchor", "start")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .style("font-family", "Verdana, 'Times New Roman', serif")
+                .text(d => {
+                    if (d.depth === 0) {
+                        // root node → take first word of firstName
+                        return truncateTextToWidth(d.data.firstName.split('(')[0], 140);
+                    } else {
+                        return truncateTextToWidth((d.data.firstName || '') + (d.data.lastName ? (' ' + d.data.lastName) : ''), 140)
+                    }
+                });
+
+            node.append("text")
+                .attr("dy", "3.2em")
+                .attr("x", 40)
+                .attr("y", d => {
+                    if (d.depth === 0) {
+                        // root node → take first word of firstName
+                        return 30;
+                    } else {
+                        return 10;
+                    }
+                })
+                .attr("text-anchor", "start")
+                .style("font-size", "14px")
+                .style("font-family", "Verdana, 'Times New Roman', serif")
+                .text(d => {
+                    if (d.depth === 0) {
+                        // root node → take first word of firstName
+                        return d.data.firstName && d.data.firstName.split('(').length > 1 ? "(" + d.data.firstName.split('(')[1] : "";
+                    } else {
+                        // others → normal role
+                        return d.data.role + (d.data.territoryGroupDivisionName ? ' (' + d.data.territoryGroupDivisionName + ')' : '') || "";
+                    }
+                });
+
+            node.append("text")
+                .attr("dy", "3.2em")
+                .attr("x", 40)
+                .attr("y", 30)
+                .attr("text-anchor", "start")
+                .style("font-size", "14px")
+                .style("font-family", "Verdana, 'Times New Roman', serif")
+                .text(d => {
+                    return d.data.email || "";
+                });
+
+            node.append("text")
+                .attr("dy", "3.2em")
+                .attr("x", 40)
+                .attr("y", 50)
+                .attr("text-anchor", "start")
+                .style("font-size", "14px")
+                .style("font-family", "Verdana, 'Times New Roman', serif")
+                .text(d => {
+                    return d.data.jobTitle || "";
+                });
+        }
+
         const apiUrl = "https://force-uat-api.azurewebsites.net/api/v1/territories/territories/chart-data";
 
         // Initial load of the page
@@ -753,7 +904,7 @@
                 .on("click", function (event, d) {
                     event.stopPropagation();
                     try {
-                        showNodePopup(d.data);
+                        showNodePopup(d);
                         const popup = document.getElementById('node-popup');
                         if (popup) {
                             popup.style.display = 'block';
@@ -779,14 +930,14 @@
                     .attr("href", d => d.data.profileImage)
                     .attr("x", d => OnlyOneFieldSelected ? -30 : -d.boxWidth / 2 + 20)
                     .attr("y", d => IsEmailOrJobTitleFieldAvailable ? 20 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
-                    .attr("width", 54)
-                    .attr("height", 54)
-                    .attr("clip-path", "circle(26px at 26px 26px)")
+                    .attr("width", 56)
+                    .attr("height", 56)
+                    .attr("clip-path", "circle(28px at 28px 28px)")
                     .style("cursor", "pointer")
                     .on("click", function (event, d) {
                         event.stopPropagation();
                         try {
-                            showNodePopup(d.data);
+                            showNodePopup(d);
                             const popup = document.getElementById('node-popup');
                             if (popup) {
                                 popup.style.display = 'block';
@@ -815,10 +966,19 @@
                         fontWeight: 'bold',
                         fill: '#222',
                         getText: () => {
-                            const name = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
+                            let name = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
+                            if (d.depth === 0 && name.split('(').length > 1) {
+                                name = name.split('(')[0].trim();
+                            }
                             return truncateTextToWidth(name, nameRoleMaxWidth);
                         },
-                        fullText: () => (d.data.firstName + ' ' + (d.data.lastName || '')).trim()
+                        fullText: () => {
+                            let name = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
+                            if (d.depth === 0 && name.split('(').length > 1) {
+                                name = name.split('(')[0].trim();
+                            }
+                            return name;
+                        }
                     },
                     {
                         key: 'role',
@@ -827,10 +987,25 @@
                         fontWeight: '400',
                         fill: '#555',
                         getText: () => {
-                            const role = (d.data.role || '').trim();
+                            const role = (d.data.role || '').trim() + (d.data.territoryGroupDivisionName ? ' (' + (d.data.territoryGroupDivisionName || '') + ')' : '');
+                            if (d.depth === 0 && (d.data.firstName || '').split('(').length > 1) {
+                                // root node → take only the part in parentheses from firstName
+                                const firstName = d.data.firstName || '';
+                                const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
+                                return truncateTextToWidth(parenPart, nameRoleMaxWidth + 24);
+                            }
                             return truncateTextToWidth(role, nameRoleMaxWidth + 24);
                         },
-                        fullText: () => (d.data.role || '').trim()
+                        fullText: () => {
+                            const role = (d.data.role || '').trim() + (d.data.territoryGroupDivisionName ? ' (' + (d.data.territoryGroupDivisionName || '') + ')' : '');
+                            if (d.depth === 0 && (d.data.firstName || '').split('(').length > 1) {
+                                // root node → take only the part in parentheses from firstName
+                                const firstName = d.data.firstName || '';
+                                const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
+                                return parenPart.trim();
+                            }
+                            return role.trim();
+                        }
                     },
                     {
                         key: 'email',
@@ -883,7 +1058,7 @@
                             .attr('y', (field.key == 'jobtitle' || field.key == 'email') && (IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && IsNameOrJobAvailable
                                 ? y + 10 : y)
                             .attr('dy', '0.4em')
-                            .attr('text-anchor',  d => OnlyOneFieldSelected ? 'middle' : 'start')
+                            .attr('text-anchor', d => OnlyOneFieldSelected ? 'middle' : 'start')
                             .style('font-size', field.fontSize + 'px')
                             .style('font-weight', field.fontWeight)
                             .style('fill', field.fill)
@@ -892,7 +1067,7 @@
                             .on('click', function (event) {
                                 event.stopPropagation();
                                 try {
-                                    showNodePopup(d.data);
+                                    showNodePopup(d);
                                     const popup = document.getElementById('node-popup');
                                     if (popup) {
                                         popup.style.display = 'block';
@@ -1038,13 +1213,14 @@
                 popup.style.position = 'fixed';
                 popup.style.top = '0';
                 popup.style.right = '-400px';
-                popup.style.width = '400px';
+                popup.style.width = '500px';
                 popup.style.height = '100%';
                 popup.style.background = '#fff';
                 popup.style.boxShadow = '-2px 0 16px rgba(25,118,210,0.10)';
                 popup.style.transition = 'right 0.4s cubic-bezier(.4,0,.2,1)';
                 popup.style.zIndex = '2000';
                 popup.style.overflowY = 'auto';
+                popup.style.overflowX = 'hidden';
                 popup.style.fontFamily = "'Segoe UI', 'Arial', 'Helvetica Neue', 'Roboto', sans-serif";
                 popup.style.display = 'none';
                 popup.innerHTML = `<button id=\"close-popup-btn\" style=\"z-index: 2000;position:absolute;top:18px;right:18px;background:none;border:none;font-size:28px;color:#fff;cursor:pointer;\">&times;</button><div id=\"popup-content\"></div>`;
@@ -1062,7 +1238,9 @@
                 };
             }
 
-            window.showNodePopup = function (data) {
+            window.showNodePopup = function (node) {
+
+                const data = node.data;  // keep JSON for details
                 const popup = document.getElementById('node-popup');
                 const content = document.getElementById('popup-content');
                 if (!popup || !content) return;
@@ -1078,13 +1256,14 @@
 
       <!-- Profile Image at bottom center -->
     <img src="${data.profileImage}" alt="Profile"
-         style="width: 140px; height: 140px; border-radius: 50%; border: 4px solid white;
+         style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid white;
             position: absolute; left: 50%; transform: translateX(-50%);
-            bottom: -70px;">
+            bottom: -50px;">
     </div>  
 
-    <!-- Details Section -->
-    <div style="background-color: #fff; color: white; padding-top: 60px; padding-bottom: 20px; text-align: center;">
+    
+    <div style="background-color: #fff; color: white; padding-top: 60px; padding-bottom: 20px; text-align: center;display: flex;">
+        <!-- Details Section 
       <div style="margin-top: 10px; text-align: left; padding: 0 20px;">
         <p style="margin: 5px 0; color: #000;">Name</p>
         <p style="margin: 5px 0px 15px 0px; color: #000;">${data.firstName + ' ' + (data.lastName || '')}</p>
@@ -1093,12 +1272,16 @@
         <p style="margin: 5px 0px 15px 0px; color: #000;">${data.email}</p>
 
         <p style="margin: 5px 0; color: #000;">Role</p>
-        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.role}</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.role + (data.territoryGroupDivisionName ? ' (' + (data.territoryGroupDivisionName || '') + ')' : '')}</p>
 
         <p style="margin: 5px 0; color: #000;">Job Title</p>
         <p style="margin: 5px 0px 15px 0px; color: #000;">${data.jobTitle || '-'}</p>
-      </div>
+      </div>-->
+       <div id="chain-container">
+      <svg></svg>
+    </div>
     </div> 
+
 
   </div>            
             `;
@@ -1106,7 +1289,10 @@
                 // Force reflow to allow transition
                 void popup.offsetWidth;
                 popup.style.right = '0';
+
+                this.openChainDrawer(node);
             };
+
         }
 
         // Helper function to truncate text to fit max width in SVG

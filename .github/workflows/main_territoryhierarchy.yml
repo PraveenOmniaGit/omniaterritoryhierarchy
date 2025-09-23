@@ -1,4 +1,4 @@
-name: Deploy static HTML to Azure Web App - territoryhierarchy
+name: Deploy single HTML file to Azure Web App - territoryhierarchy
 
 on:
   push:
@@ -8,19 +8,18 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Windows is fine too, but Ubuntu is faster
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # No dotnet setup or build needed – just upload your static files
+      # show what's in the workspace (optional, helps debug)
+      - name: Show files
+        run: ls -l
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
-        with:          
-          app-name: 'territoryhierarchy'      # Your Azure Web App name       
-          package: './site'   # <— folder with index.html, assets, etc.
+        with:
+          app-name: 'territoryhierarchy'
+          package: '.'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9C3C458DA5D949FF8C668512B048F7B6 }}
-
-
-
-

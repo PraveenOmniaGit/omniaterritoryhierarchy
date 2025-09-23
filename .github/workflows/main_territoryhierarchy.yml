@@ -18,8 +18,9 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:          
           app-name: 'territoryhierarchy'      # Your Azure Web App name       
-          package: '.'                        # Path to your static HTML files (root of repo)
+          package: './site'   # <— folder with index.html, assets, etc.
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9C3C458DA5D949FF8C668512B048F7B6 }}
+
 
 
 

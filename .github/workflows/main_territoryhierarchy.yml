@@ -17,7 +17,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'territoryhierarchy'      # Your Azure Web App name
-          slot-name: 'Production'             # or omit if only one slot
+          app-name: 'territoryhierarchy'      # Your Azure Web App name       
           package: '.'                        # Path to your static HTML files (root of repo)
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9C3C458DA5D949FF8C668512B048F7B6 }}
+

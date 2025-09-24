@@ -3,20 +3,19 @@ name: Deploy static HTML to Azure Web App
 on:
   push:
     branches:
-      - main   # deploy whenever you push to main
-  workflow_dispatch: # allow manual trigger
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 'Checkout source code'
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'territoryhierarchy'  # <-- change to your App Service name
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .   # deploy everything in the repo (including index.html)
+          app-name: 'territoryhierarchy'          # exactly as in the portal
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}  # secret containing full XML
+          package: .   # folder with index.html

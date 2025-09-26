@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">  
- 
+<html lang="en">
+
 <head>
     <meta charset="UTF-8" />
-    <title>D3 Vertical Tree with Expand/Collapse & Node Box</title> 
+    <title>D3 Vertical Tree with Expand/Collapse & Node Box</title>
     <style>
         html,
         body {
@@ -13,7 +13,38 @@
             width: 100%;
             overflow: hidden;
             font-family: 'Segoe UI', Arial, sans-serif;
-            background: #f0f2f5;
+            background: #fafafa;
+        }
+
+        ::-webkit-scrollbar {
+            width: 7px;
+            /* Width of the vertical scrollbar */
+        }
+
+        ::-webkit-scrollbar:horizontal {
+            height: 7px;
+            /* Height of the horizontal scrollbar */
+        }
+
+        ::-webkit-scrollbar-track {
+            margin: 0 !important;
+            border: none;
+            background: #fff;
+            /* Remove any space around the track */
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: #c1c1c1 !important;
+            /* Thumb color */
+            border-radius: 10px;
+            /* Rounded corners for the thumb */
+        }
+
+        ::-webkit-scrollbar-thumb:horizontal {
+            background-color: #cdcdcd !important;
+            /* Thumb color */
+            border-radius: 10px;
+            /* Rounded corners for the thumb */
         }
 
         .node-label,
@@ -30,6 +61,7 @@
             overflow: auto;
             background: #fafafa;
             position: relative;
+            /* margin-top: 90px; */
         }
 
         .control-buttons {
@@ -263,7 +295,8 @@
             <button type="button" class="custom-multiselect-btn" id="customMultiSelectBtn">Select fields</button>
             <div class="custom-multiselect-dropdown" id="customMultiSelectDropdown">
                 <label class="custom-multiselect-option"><input type="checkbox" value="photo" checked> Photo</label>
-                <label class="custom-multiselect-option"><input type="checkbox" value="name" checked> Name</label>
+                <label class="custom-multiselect-option"><input type="checkbox" value="name" checked disabled>
+                    Name</label>
                 <label class="custom-multiselect-option"><input type="checkbox" value="jobtitle"> Job Title</label>
                 <label class="custom-multiselect-option"><input type="checkbox" value="email"> Email</label>
                 <label class="custom-multiselect-option"><input type="checkbox" value="role" checked> Role</label>
@@ -614,6 +647,7 @@
 
             // Render into drawer
             renderChainTree(chainRoot);
+
         }
 
         function renderChainTree(root) {
@@ -733,6 +767,21 @@
                 .text(d => {
                     return d.data.jobTitle || "";
                 });
+
+            const popup = document.getElementById('node-popup');
+            if (popup) {
+                popup.style.display = 'block';
+                popup.style.zIndex = '9999';
+                popup.style.pointerEvents = 'auto';
+                void popup.offsetWidth;
+                popup.style.right = '0';
+                const treeContainer = document.getElementById('tree-container');
+                if (treeContainer) {
+                    setTimeout(() => { treeContainer.style.width = '70%'; }
+                        , 400); // match transition                                
+                }
+            }
+
         }
 
         const apiUrl = "https://force-uat-api.azurewebsites.net/api/v1/territories/territories/chart-data";
@@ -816,6 +865,9 @@
             if (selected.includes('photo') && (selected.includes('email') || selected.includes('jobtitle'))) {
                 // If all fields are selected, increase vertical spacing to accommodate larger boxes
                 verticalSpacing = 160; // Uncomment if needed
+            }
+            if(selected != null && selected.length == 1){
+                verticalSpacing = 120; // More space for single field to avoid overlap
             }
             const treeLayout = d3.tree()
                 .nodeSize([horizontalSpacing, verticalSpacing])
@@ -943,6 +995,9 @@
                         IsEmailOrJobTitleFieldAvailable = true;
                     }
                 }
+                if (OnlyOneFieldSelected) {
+                    boxHeight = 60;
+                }
                 d.boxWidth = boxWidth;
                 d.boxHeight = boxHeight;
                 d.textX = textX;
@@ -1035,18 +1090,6 @@
                     event.stopPropagation();
                     try {
                         showNodePopup(d);
-                        const popup = document.getElementById('node-popup');
-                        if (popup) {
-                            popup.style.display = 'block';
-                            popup.style.zIndex = '9999';
-                            popup.style.pointerEvents = 'auto';
-                            void popup.offsetWidth;
-                            popup.style.right = '0';
-                            const treeContainer = document.getElementById('tree-container');
-                            if (treeContainer) {
-                                treeContainer.style.width = '70%';
-                            }
-                        }
                     } catch (e) {
                         console.error("Popup error:", e);
                     }
@@ -1062,8 +1105,13 @@
                 node.append("image")
                     .attr("class", "node-photo node-field-photo")
                     .attr("href", d => d.data.profileImage)
-                    .attr("x", d => OnlyOneFieldSelected ? -30 : -d.boxWidth / 2 + 20)
-                    .attr("y", d => IsEmailOrJobTitleFieldAvailable ? 20 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 20 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2)
+                    .attr("x", d => OnlyOneFieldSelected ? -30 : -d.boxWidth / 2 + 5)
+                    .attr("y", (d) => {
+                        if(d.depth == 0){
+                            return (d.boxHeight - 20) / 2;
+                        }
+                        return IsEmailOrJobTitleFieldAvailable ? 18 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 15 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2
+                    })
                     .attr("width", 56)
                     .attr("height", 56)
                     .attr("clip-path", "circle(28px at 28px 28px)")
@@ -1072,25 +1120,13 @@
                         event.stopPropagation();
                         try {
                             showNodePopup(d);
-                            const popup = document.getElementById('node-popup');
-                            if (popup) {
-                                popup.style.display = 'block';
-                                popup.style.zIndex = '9999';
-                                popup.style.pointerEvents = 'auto';
-                                void popup.offsetWidth;
-                                popup.style.right = '0';
-                                const treeContainer = document.getElementById('tree-container');
-                                if (treeContainer) {
-                                    treeContainer.style.width = '70%';
-                                }
-                            }
                         } catch (e) {
                             console.error("Popup error:", e);
                         }
                     });
             }
             else {
-                nameRoleMaxWidth = boxWidth + 40;
+                nameRoleMaxWidth = boxWidth + 70;
             }
 
             // Always render all possible fields, toggle visibility for instant feedback
@@ -1108,7 +1144,7 @@
                             if (d.depth === 0 && name.split('(').length > 1) {
                                 name = name.split('(')[0].trim();
                             }
-                            return truncateTextToWidth(name, nameRoleMaxWidth);
+                            return truncateTextToWidth(name, isImageVisible ? nameRoleMaxWidth + 17 : nameRoleMaxWidth);
                         },
                         fullText: () => {
                             let name = (d.data.firstName + ' ' + (d.data.lastName || '')).trim();
@@ -1130,9 +1166,9 @@
                                 // root node → take only the part in parentheses from firstName
                                 const firstName = d.data.firstName || '';
                                 const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
-                                return truncateTextToWidth(parenPart, nameRoleMaxWidth + 24);
+                                return truncateTextToWidth(parenPart, nameRoleMaxWidth + 50);
                             }
-                            return truncateTextToWidth(role, nameRoleMaxWidth + 24);
+                            return truncateTextToWidth(role, nameRoleMaxWidth + 50);
                         },
                         fullText: () => {
                             const role = (d.data.role || '').trim() + (d.data.territoryGroupDivisionName ? ' (' + (d.data.territoryGroupDivisionName || '') + ')' : '');
@@ -1152,7 +1188,7 @@
                         fontWeight: '400',
                         fill: '#555',
                         getText: () => truncateTextToWidth(d.data.email || '',
-                            IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                            IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 65 : nameRoleMaxWidth, 12, '400'),
                         fullText: () => (d.data.email || '').trim()
                     },
                     {
@@ -1161,7 +1197,7 @@
                         fontSize: 12,
                         fontWeight: '400',
                         fill: '#555',
-                        getText: () => truncateTextToWidth(d.data.jobTitle || '', IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 40 : nameRoleMaxWidth, 12, '400'),
+                        getText: () => truncateTextToWidth(d.data.jobTitle || '', IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable ? boxWidth + 65 : nameRoleMaxWidth, 12, '400'),
                         fullText: () => (d.data.jobTitle || '').trim()
                     }
                 ];
@@ -1185,18 +1221,39 @@
                         d3.select(this).append('text')
                             .attr('class', field.className)
                             .attr('x', () => {
-                                if (OnlyOneFieldSelected) {
-                                    return 0; // center
+                                if (d.depth == 0 && !isImageVisible) {
+                                    return -0; // center the root node text if no image
+                                }
+                                if (OnlyOneFieldSelected || (!isImageVisible && field.key == 'name')) {
+                                    return -0; // center
                                 } else if (field.key === 'jobtitle' || field.key === 'email') {
-                                    return -d.boxWidth / 2 + 20;
+                                    return -d.boxWidth / 2 + 5;
+                                } else if (!isImageVisible) {
+                                    return -d.boxWidth / 2 + 5;
                                 } else {
-                                    return -d.boxWidth / 2 + d.textX;
+                                    return -d.boxWidth / 2 + d.textX - 10;
                                 }
                             })
-                            .attr('y', (field.key == 'jobtitle' || field.key == 'email') && (IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && IsNameOrJobAvailable
-                                ? y + 10 : y)
+                            .attr('y', () => {
+                                if (d.depth == 0 && (field.key != 'role' && field.key != 'name')) {
+                                    return 0;
+                                }
+                                if (d.depth == 0 && (field.key == 'name')) {
+                                    return y = 10 +(d.boxHeight / 2);
+                                }
+                                if (d.depth == 0 && (field.key == 'role')) {
+                                    return y = y + 20;
+                                }
+                                return (field.key == 'jobtitle' || field.key == 'email') && (IsAllFieldAvailable || IsEmailOrJobTitleFieldAvailable) && IsNameOrJobAvailable
+                                    ? y + 10 : y;
+                            })
                             .attr('dy', '0.4em')
-                            .attr('text-anchor', d => OnlyOneFieldSelected ? 'middle' : 'start')
+                            .attr('text-anchor', () => {
+                                if (d.depth == 0 && !isImageVisible) {
+                                    return 'middle'; // center the root node text if no image
+                                }
+                                return (OnlyOneFieldSelected || (!isImageVisible && field.key == 'name')) ? 'middle' : 'start';
+                            })
                             .style('font-size', field.fontSize + 'px')
                             .style('font-weight', field.fontWeight)
                             .style('fill', field.fill)
@@ -1206,25 +1263,19 @@
                                 event.stopPropagation();
                                 try {
                                     showNodePopup(d);
-                                    const popup = document.getElementById('node-popup');
-                                    if (popup) {
-                                        popup.style.display = 'block';
-                                        popup.style.zIndex = '9999';
-                                        popup.style.pointerEvents = 'auto';
-                                        void popup.offsetWidth;
-                                        popup.style.right = '0';
-                                        const treeContainer = document.getElementById('tree-container');
-                                        if (treeContainer) {
-                                            treeContainer.style.width = '70%';
-                                        }
-                                    }
                                 } catch (e) {
                                     console.error("Popup error:", e);
                                 }
                             })
                             .append('title')
                             .text(field.fullText);
-                        y += field.fontSize + 8;
+
+                        if (d.depth == 0) {
+                            y = y;
+                        }
+                        else {
+                            y += field.fontSize + 8;
+                        }
                     }
                 });
             });
@@ -1359,6 +1410,10 @@
                         popup.style.right = '-550px';
                         setTimeout(() => { popup.style.display = 'none'; }, 400); // match transition
                     }
+                    const treeContainer = document.getElementById('tree-container');
+                    if (treeContainer) {
+                        treeContainer.style.width = '100%';
+                    }
                 };
             }
 
@@ -1409,10 +1464,6 @@
 
   </div>            
             `;
-                popup.style.display = 'block';
-                // Force reflow to allow transition
-                void popup.offsetWidth;
-                popup.style.right = '0';
 
                 this.openChainDrawer(node);
             };
@@ -1561,7 +1612,3 @@
 </body>
 
 </html>
-
-
-
-

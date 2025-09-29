@@ -742,7 +742,11 @@
                         return d.data.firstName && d.data.firstName.split('(').length > 1 ? "(" + d.data.firstName.split('(')[1] : "";
                     } else {
                         // others → normal role
-                        return d.data.role + (d.data.territoryGroupDivisionName ? ' (' + d.data.territoryGroupDivisionName + ')' : '') || "";
+                        let role = d.data.role || "";
+                        if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                            role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
+                        }
+                        return role;
                     }
                 });
 
@@ -784,7 +788,7 @@
 
         }
 
-        const apiUrl = "https://force-uat-api.azurewebsites.net/api/v1/territories/territories/chart-data";
+        const apiUrl = "https://force-prod-api.azurewebsites.net/api/v1/territories/territories/chart-data";
 
         // Initial load of the page
         loadData('current');
@@ -866,7 +870,7 @@
                 // If all fields are selected, increase vertical spacing to accommodate larger boxes
                 verticalSpacing = 160; // Uncomment if needed
             }
-            if(selected != null && selected.length == 1){
+            if (selected != null && selected.length == 1) {
                 verticalSpacing = 120; // More space for single field to avoid overlap
             }
             const treeLayout = d3.tree()
@@ -1107,7 +1111,7 @@
                     .attr("href", d => d.data.profileImage)
                     .attr("x", d => OnlyOneFieldSelected ? -30 : -d.boxWidth / 2 + 5)
                     .attr("y", (d) => {
-                        if(d.depth == 0){
+                        if (d.depth == 0) {
                             return (d.boxHeight - 20) / 2;
                         }
                         return IsEmailOrJobTitleFieldAvailable ? 18 + (d.boxHeight - 80) / 2 : IsAllFieldAvailable ? 15 + (d.boxHeight - 90) / 2 : 20 + (d.boxHeight - 56) / 2
@@ -1161,22 +1165,28 @@
                         fontWeight: '400',
                         fill: '#555',
                         getText: () => {
-                            const role = (d.data.role || '').trim() + (d.data.territoryGroupDivisionName ? ' (' + (d.data.territoryGroupDivisionName || '') + ')' : '');
+                            let role = (d.data.role || '').trim();
                             if (d.depth === 0 && (d.data.firstName || '').split('(').length > 1) {
                                 // root node → take only the part in parentheses from firstName
                                 const firstName = d.data.firstName || '';
                                 const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
                                 return truncateTextToWidth(parenPart, nameRoleMaxWidth + 50);
                             }
+                            if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                                role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
+                            }
                             return truncateTextToWidth(role, nameRoleMaxWidth + 50);
                         },
                         fullText: () => {
-                            const role = (d.data.role || '').trim() + (d.data.territoryGroupDivisionName ? ' (' + (d.data.territoryGroupDivisionName || '') + ')' : '');
+                            let role = (d.data.role || '').trim();
                             if (d.depth === 0 && (d.data.firstName || '').split('(').length > 1) {
                                 // root node → take only the part in parentheses from firstName
                                 const firstName = d.data.firstName || '';
                                 const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
                                 return parenPart.trim();
+                            }
+                            if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                                role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
                             }
                             return role.trim();
                         }
@@ -1224,7 +1234,7 @@
                                 if (d.depth == 0 && !isImageVisible) {
                                     return -0; // center the root node text if no image
                                 }
-                                if (OnlyOneFieldSelected || (!isImageVisible && field.key == 'name')) {
+                                if (OnlyOneFieldSelected || (!isImageVisible && (field.key == 'name' || field.key == 'role'))) {
                                     return -0; // center
                                 } else if (field.key === 'jobtitle' || field.key === 'email') {
                                     return -d.boxWidth / 2 + 5;
@@ -1239,7 +1249,7 @@
                                     return 0;
                                 }
                                 if (d.depth == 0 && (field.key == 'name')) {
-                                    return y = 10 +(d.boxHeight / 2);
+                                    return y = 10 + (d.boxHeight / 2);
                                 }
                                 if (d.depth == 0 && (field.key == 'role')) {
                                     return y = y + 20;
@@ -1252,7 +1262,7 @@
                                 if (d.depth == 0 && !isImageVisible) {
                                     return 'middle'; // center the root node text if no image
                                 }
-                                return (OnlyOneFieldSelected || (!isImageVisible && field.key == 'name')) ? 'middle' : 'start';
+                                return (OnlyOneFieldSelected || (!isImageVisible && (field.key == 'name' || field.key == 'role'))) ? 'middle' : 'start';
                             })
                             .style('font-size', field.fontSize + 'px')
                             .style('font-weight', field.fontWeight)
@@ -1441,7 +1451,7 @@
     </div>  
 
     
-    <div style="background-color: #fff; color: white; padding-top: 60px; padding-bottom: 20px; text-align: center;display: flex;">
+    <div style="background-color: #fff; color: white; padding-top: 20px; padding-bottom: 10px; text-align: center;display: flex;">
         <!-- Details Section 
       <div style="margin-top: 10px; text-align: left; padding: 0 20px;">
         <p style="margin: 5px 0; color: #000;">Name</p>
@@ -1451,10 +1461,10 @@
         <p style="margin: 5px 0px 15px 0px; color: #000;">${data.email}</p>
 
         <p style="margin: 5px 0; color: #000;">Role</p>
-        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.role + (data.territoryGroupDivisionName ? ' (' + (data.territoryGroupDivisionName || '') + ')' : '')}</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.role || ''}</p>
 
         <p style="margin: 5px 0; color: #000;">Job Title</p>
-        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.jobTitle || '-'}</p>
+        <p style="margin: 5px 0px 15px 0px; color: #000;">${data.jobTitle || ''}</p>
       </div>-->
        <div id="chain-container">
       <svg></svg>

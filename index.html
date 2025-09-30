@@ -743,8 +743,8 @@
                     } else {
                         // others → normal role
                         let role = d.data.role || "";
-                        if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
-                            role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
+                        if ((d.data.role?.toLowerCase() == "territory manager" || d.data.role?.toLowerCase() == "division leader" || d.data.role?.toLowerCase() == "group leader") && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                            role = role + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
                         }
                         return role;
                     }
@@ -788,7 +788,7 @@
 
         }
 
-        const apiUrl = "https://force-uat-api.azurewebsites.net/api/v1/territories/territories/chart-data";
+        const apiUrl = "https://force-prod-api.azurewebsites.net/api/v1/territories/territories/chart-data";
 
         // Initial load of the page
         loadData('current');
@@ -1172,8 +1172,8 @@
                                 const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
                                 return truncateTextToWidth(parenPart, nameRoleMaxWidth + 50);
                             }
-                            if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
-                                role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
+                            if ((d.data.role?.toLowerCase() == "territory manager" || d.data.role?.toLowerCase() == "division leader" || d.data.role?.toLowerCase() == "group leader") && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                                role = role + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
                             }
                             return truncateTextToWidth(role, nameRoleMaxWidth + 50);
                         },
@@ -1185,8 +1185,8 @@
                                 const parenPart = firstName.split('(').length > 1 ? "(" + firstName.split('(')[1] : '';
                                 return parenPart.trim();
                             }
-                            if (d.data.role?.toLowerCase() == "territory manager" && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
-                                role = role + " - " + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
+                            if ((d.data.role?.toLowerCase() == "territory manager" || d.data.role?.toLowerCase() == "division leader" || d.data.role?.toLowerCase() == "group leader") && d.data.territoryGroupDivisionName != null && d.data.territoryGroupDivisionName != "") {
+                                role = role + ' (' + (d.data.territoryGroupDivisionName || '') + ')';
                             }
                             return role.trim();
                         }
@@ -1622,4 +1622,3 @@
 </body>
 
 </html>
-
